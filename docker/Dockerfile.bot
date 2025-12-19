@@ -1,0 +1,16 @@
+# Minimal Dockerfile to run Bot Worker (uses backend code)
+FROM node:18-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --production
+COPY . .
+RUN npm run build
+
+FROM node:18-alpine
+WORKDIR /app
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package.json ./
+
+# Default command runs the bot manager (start bots)
+CMD ["node", "dist/scripts/startBots.js"]
