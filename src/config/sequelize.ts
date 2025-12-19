@@ -7,6 +7,7 @@ import { Product } from '../models/Product';
 import { Customer } from '../models/Customer';
 import { Order } from '../models/Order';
 import { OrderItem } from '../models/OrderItem';
+import { Plan } from '../models/Plan';
 
 dotenv.config();
 
@@ -18,7 +19,7 @@ if (process.env.NODE_ENV === 'test') {
     dialect: 'sqlite',
     storage: ':memory:',
     logging: false,
-    models: [User, Store, Category, Product, Customer, Order, OrderItem],
+    models: [User, Store, Category, Product, Customer, Order, OrderItem, Plan],
   };
 } else {
   sequelizeConfig = {
@@ -29,7 +30,7 @@ if (process.env.NODE_ENV === 'test') {
     port: parseInt(process.env.DB_PORT || '3306'),
     dialect: 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
-    models: [User, Store, Category, Product, Customer, Order, OrderItem],
+    models: [User, Store, Category, Product, Customer, Order, OrderItem, Plan],
     pool: {
       max: 10,
       min: 0,

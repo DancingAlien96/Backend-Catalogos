@@ -14,6 +14,7 @@ import { Product } from './Product';
 import { Category } from './Category';
 import { Customer } from './Customer';
 import { Order } from './Order';
+import { Plan } from './Plan';
 
 @Table({
   tableName: 'stores',
@@ -65,6 +66,16 @@ export class Store extends Model {
     allowNull: true,
   })
   api_secret!: string;
+
+  @ForeignKey(() => Plan)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+  })
+  plan_id!: number | null;
+
+  @BelongsTo(() => Plan)
+  plan!: Plan;
 
   @Column({
     type: DataType.STRING(255),
