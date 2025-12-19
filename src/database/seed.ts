@@ -18,7 +18,39 @@ async function seed() {
     const userId = (userResult as any).insertId;
     console.log('✅ Usuario creado: demo@catalogos.com / password123');
 
-    // 2. Crear tienda de prueba
+    // 2. Crear planes por defecto (si no existen)
+    const [existingPlans] = await pool.query(`SELECT id FROM plans LIMIT 1`);
+    let freePlanId: number | null = null;
+
+    if (!((existingPlans as any[]).length > 0)) {
+      console.log('🌱 Insertando planes por defecto...');
+      const plans = [
+        { name: 'Free', slug: 'free', description: 'Plan gratuito con límite de 15 productos', price: 0, product_limit: 15 },
+        { name: 'Basic', slug: 'basic', description: 'Plan básico con límite de 100 productos', price: 9.99, product_limit: 100 },
+        { name: 'Pro', slug: 'pro', description: 'Plan Pro sin límite de productos', price: 29.99, product_limit: null },
+      ];
+
+      for (const p of plans) {
+        if (p.product_limit === null) {
+          await pool.query(
+            'INSERT INTO plans (name, slug, description, price, product_limit) VALUES (?, ?, ?, ?, NULL)',
+            [p.name, p.slug, p.description, p.price]
+          );
+        } else {
+          await pool.query(
+            'INSERT INTO plans (name, slug, description, price, product_limit) VALUES (?, ?, ?, ?, ?)',
+            [p.name, p.slug, p.description, p.price, p.product_limit]
+          );
+        }
+      }
+
+      const [rows] = await pool.query('SELECT id FROM plans WHERE slug = ?', ['free']);
+      freePlanId = (rows as any[])[0].id;
+    } else {
+      const [rows] = await pool.query('SELECT id FROM plans WHERE slug = ?', ['free']);
+      if ((rows as any[]).length > 0) freePlanId = (rows as any[])[0].id;
+    }
+
     const apiKey = 'mk_' + randomBytes(24).toString('hex');
     const apiSecret = 'sk_' + randomBytes(24).toString('hex');
     
@@ -31,11 +63,12 @@ async function seed() {
     
     const [storeResult] = await pool.query(
       `INSERT INTO stores (
-        user_id, name, slug, description, api_key, api_secret,
+        user_id, plan_id, name, slug, description, api_key, api_secret,
         bot_token, subscription_status, trial_ends_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
+        freePlanId,
         'MercySales Demo',
         'mercysales-demo',
         'Tienda de demostración',

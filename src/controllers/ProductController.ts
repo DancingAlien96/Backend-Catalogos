@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Product, Category } from '../models';
+import { Product, Category, Store, Plan } from '../models';
 import { AuthRequest } from '../middleware/auth';
 
 export class ProductController {
@@ -66,6 +66,18 @@ export class ProductController {
         current_stock,
         min_stock_alert,
       } = req.body;
+
+      // Obtener tienda y plan para validar límite de productos
+      const store = await Store.findByPk(req.storeId!, { include: [Plan] });
+      if (!store) return res.status(404).json({ error: 'Tienda no encontrada' });
+
+      const plan: any = (store as any).plan;
+      if (plan && plan.product_limit !== null && typeof plan.product_limit !== 'undefined') {
+        const currentCount = await Product.count({ where: { store_id: req.storeId } });
+        if (currentCount >= plan.product_limit) {
+          return res.status(403).json({ error: `Límite de productos alcanzado para el plan actual (${plan.product_limit})` });
+        }
+      }
 
       const product = await Product.create({
         store_id: req.storeId!,

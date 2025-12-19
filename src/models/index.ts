@@ -6,3 +6,4 @@ export { Product } from './Product';
 export { Customer } from './Customer';
 export { Order } from './Order';
 export { OrderItem } from './OrderItem';
+export { Plan } from './Plan';
