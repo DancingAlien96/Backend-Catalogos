@@ -7,8 +7,23 @@ export class OrderController {
   // GET /api/orders - Listar órdenes
   static async getAll(req: AuthRequest, res: Response) {
     try {
-      const orders = await Order.findAll({
-        where: { store_id: req.storeId },
+      const page = parseInt((req.query.page as string) || '1', 10);
+      const limit = Math.min(parseInt((req.query.limit as string) || '20', 10), 100);
+      const offset = (page - 1) * limit;
+
+      const { Op } = require('sequelize');
+      const where: any = { store_id: req.storeId };
+      if (req.query.status) where.status = req.query.status;
+      if (req.query.q) {
+        const q = (req.query.q as string).trim();
+        where[Op.or] = [
+          { order_number: { [Op.like]: `%${q}%` } },
+          { '$customer.name$': { [Op.like]: `%${q}%` } },
+        ];
+      }
+
+      const { rows, count } = await Order.findAndCountAll({
+        where,
         include: [
           {
             model: Customer,
@@ -28,9 +43,14 @@ export class OrderController {
           },
         ],
         order: [['created_at', 'DESC']],
+        limit,
+        offset,
       });
 
-      res.json({ orders });
+      res.json({
+        orders: rows,
+        meta: { total: count, page, perPage: limit, totalPages: Math.ceil(count / limit) },
+      });
     } catch (error) {
       console.error('Error al listar órdenes:', error);
       res.status(500).json({ error: 'Error al obtener órdenes' });
@@ -94,12 +114,14 @@ export class OrderController {
       const orderItems = [];
 
       for (const item of items) {
+        // Lock the product row for update to avoid race conditions
         const product = await Product.findOne({
           where: {
             id: item.product_id,
             store_id: req.storeId,
           },
           transaction,
+          lock: transaction.LOCK.UPDATE,
         });
 
         if (!product) {
