@@ -19,11 +19,12 @@ npm install
 
 ## Configuración
 
-1. Copia `.env` y configura tus credenciales (usa `.env.example` como referencia)
+1. Copia `.env` y configura tus credenciales (usa `.env.example` como referencia`)
 2. Crea la base de datos MySQL: `catalogos_saas`
 3. Ejecuta las migraciones: `npm run migrate`
 
 ### Dependencias adicionales
+
 - **Redis**: Se usa para persistir sesiones y colas de trabajos. Puedes correrlo localmente con Docker:
 
 ```bash
@@ -34,6 +35,7 @@ docker-compose up -d redis
 - **Métricas**: El servidor expone `/metrics` para Prometheus (usa `prom-client`).
 
 ### Pruebas de sesión (local)
+
 1. Arranca Redis (ver arriba)
 2. Ejecuta:
 
@@ -44,6 +46,7 @@ npm run test:session
 Esto probará la creación, adición y borrado de sesiones en Redis.
 
 ### Escalado y extracción del Bot Worker
+
 Si más adelante quieres separar el runtime de los bots a un servicio independiente, sigue la guía en `BOT_WORKER.md` (se incluye en el repo). Esto ya está preparado: sesiones se indexan por tienda en Redis, hay un script `src/scripts/startBots.ts` y un `docker/Dockerfile.bot` como referencia para el contenedor del worker.
 
 ## Uso
@@ -59,17 +62,20 @@ npm run dev:bots
 ## API Endpoints
 
 ### Productos
+
 - `GET /api/products` - Listar productos (requiere API key)
 - `POST /api/products` - Crear producto
 - `PUT /api/products/:id` - Actualizar producto
 - `DELETE /api/products/:id` - Eliminar producto
 
 ### Pedidos
+
 - `GET /api/orders` - Listar pedidos
 - `POST /api/orders` - Crear pedido
 - `PUT /api/orders/:id` - Actualizar pedido
 
 ### Clientes
+
 - `GET /api/customers` - Listar clientes
 - `POST /api/customers` - Crear cliente
 
