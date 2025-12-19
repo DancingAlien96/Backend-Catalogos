@@ -6,17 +6,23 @@ async function seed() {
   console.log('🌱 Creando datos de prueba...\n');
 
   try {
-    // 1. Crear usuario de prueba
-    const passwordHash = await bcrypt.hash('password123', 10);
-    
-    const [userResult] = await pool.query(
-      `INSERT INTO users (email, password_hash, first_name, last_name) 
-       VALUES (?, ?, ?, ?)`,
-      ['demo@catalogos.com', passwordHash, 'Demo', 'User']
-    );
-    
-    const userId = (userResult as any).insertId;
-    console.log('✅ Usuario creado: demo@catalogos.com / password123');
+    // 1. Crear usuario de prueba (idempotente)
+    const [existingUsers] = await pool.query('SELECT id FROM users WHERE email = ?', ['demo@catalogos.com']);
+    let userId: number;
+
+    if ((existingUsers as any[]).length > 0) {
+      userId = (existingUsers as any[])[0].id;
+      console.log('ℹ️ Usuario existente detectado: demo@catalogos.com');
+    } else {
+      const passwordHash = await bcrypt.hash('password123', 10);
+      const [userResult] = await pool.query(
+        `INSERT INTO users (email, password_hash, first_name, last_name) 
+         VALUES (?, ?, ?, ?)`,
+        ['demo@catalogos.com', passwordHash, 'Demo', 'User']
+      );
+      userId = (userResult as any).insertId;
+      console.log('✅ Usuario creado: demo@catalogos.com / password123');
+    }
 
     // 2. Crear planes por defecto (si no existen)
     const [existingPlans] = await pool.query(`SELECT id FROM plans LIMIT 1`);
@@ -51,8 +57,9 @@ async function seed() {
       if ((rows as any[]).length > 0) freePlanId = (rows as any[])[0].id;
     }
 
-    const apiKey = 'mk_' + randomBytes(24).toString('hex');
-    const apiSecret = 'sk_' + randomBytes(24).toString('hex');
+    // Allow overriding API key for development convenience
+    const apiKey = process.env.DEV_API_KEY || 'mk_' + randomBytes(24).toString('hex');
+    const apiSecret = process.env.DEV_API_SECRET || 'sk_' + randomBytes(24).toString('hex');
     
     // IMPORTANTE: Reemplaza este token con el token real de tu bot de Telegram
     // Obtenlo desde @BotFather en Telegram
@@ -65,7 +72,7 @@ async function seed() {
       `INSERT INTO stores (
         user_id, plan_id, name, slug, description, api_key, api_secret,
         bot_token, subscription_status, trial_ends_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         freePlanId,

@@ -27,10 +27,10 @@ export async function authenticateStore(
 ) {
   try {
     const apiKey = req.headers['x-api-key'] as string;
-    
+
     console.log('📩 Headers recibidos:', req.headers);
     console.log('🔑 API Key extraído:', apiKey);
-    
+
     if (!apiKey) {
       console.log('❌ No se encontró API key en el header');
       return res.status(401).json({ 
@@ -38,14 +38,24 @@ export async function authenticateStore(
         message: 'Incluye el header X-API-Key con tu API key' 
       });
     }
-    
-    const store = await Store.findOne({
+
+    // Try to find store by API key
+    let store = await Store.findOne({
       where: { 
         api_key: apiKey,
         is_active: true 
       },
       attributes: ['id', 'user_id', 'name', 'slug', 'subscription_status', 'is_active', 'settings'],
     });
+
+    // Development fallback: if running locally and the provided API key is the default dev key
+    // allow mapping to the demo store (helps frontend default key to work without seeding)
+    const DEV_KEYS = [process.env.DEV_API_KEY, process.env.DEFAULT_API_KEY || 'mk_e8724f3186c5e7ce40f479b0420c14cfaf273cbaacb5c325'];
+    if (!store && (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === undefined) && DEV_KEYS.includes(apiKey)) {
+      console.log('⚠️ No se encontró store por API key; aplicando fallback de desarrollo para demo store');
+      store = await Store.findOne({ where: { slug: 'mercysales-demo', is_active: true }, attributes: ['id', 'user_id', 'name', 'slug', 'subscription_status', 'is_active', 'settings'] });
+      if (store) console.log('🏪 Store fallback encontrado:', store.name);
+    }
     
     console.log('🏪 Store encontrado:', store ? store.name : 'null');
     
