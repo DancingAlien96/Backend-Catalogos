@@ -80,6 +80,18 @@ export class PublicController {
     }
   }
 
+  // GET /api/public/plans - Listar planes disponibles
+  static async getPlans(req: Request, res: Response) {
+    try {
+      const { Plan } = await import('../models');
+      const plans = await Plan.findAll({ order: [['price', 'ASC']] });
+      res.json({ plans });
+    } catch (error) {
+      console.error('Error al obtener planes:', error);
+      res.status(500).json({ error: 'Error al obtener planes' });
+    }
+  }
+
   // GET /api/public/catalog/:slug - Obtener catálogo público por slug
   static async getCatalog(req: Request, res: Response) {
     try {
