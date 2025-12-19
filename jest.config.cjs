@@ -4,4 +4,5 @@ module.exports = {
   testMatch: ['**/src/**/*.test.ts', '**/src/**/__tests__/*.ts'],
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
   coverageDirectory: 'coverage',
+  globalTeardown: './jest.teardown.js'
 };

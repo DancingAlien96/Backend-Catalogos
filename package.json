@@ -14,7 +14,8 @@
     "test:session": "ts-node src/scripts/testSessionRedis.ts",
     "test:unit": "jest --config jest.config.cjs",
     "test": "npm run test:unit",
-    "lint": "echo \"no lint configured\" && exit 0"
+    "lint": "echo \"no lint configured\" && exit 0",
+    "start:ai-worker": "ts-node src/workers/aiWorker.ts"
   },
   "keywords": [
     "saas",
@@ -42,6 +43,7 @@
     "mysql2": "^3.6.5",
     "openai": "^4.104.0",
     "prom-client": "^14.0.0",
+    "bullmq": "^1.85.0",
     "reflect-metadata": "^0.2.2",
     "sequelize": "^6.37.7",
     "sequelize-typescript": "^2.1.6",
