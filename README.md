@@ -43,6 +43,9 @@ npm run test:session
 
 Esto probará la creación, adición y borrado de sesiones en Redis.
 
+### Escalado y extracción del Bot Worker
+Si más adelante quieres separar el runtime de los bots a un servicio independiente, sigue la guía en `BOT_WORKER.md` (se incluye en el repo). Esto ya está preparado: sesiones se indexan por tienda en Redis, hay un script `src/scripts/startBots.ts` y un `docker/Dockerfile.bot` como referencia para el contenedor del worker.
+
 ## Uso
 
 ```bash

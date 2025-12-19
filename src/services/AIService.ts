@@ -96,6 +96,27 @@ Si no recomiendas ningún producto, usa productIds: []`;
     }
   }
 
+  // New method to process prompts directly (used by worker)
+  async processPrompt(prompt: { system?: string; user: string }, options?: any) {
+    try {
+      const messages = [] as any[];
+      if (prompt.system) messages.push({ role: 'system', content: prompt.system });
+      messages.push({ role: 'user', content: prompt.user });
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages,
+        temperature: options?.temperature || 0.7,
+        max_tokens: options?.max_tokens || 300,
+      });
+
+      return completion.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('Error in processPrompt:', error);
+      throw error;
+    }
+  }
+
   async answerQuestion(
     userQuestion: string,
     storeId: number,
@@ -119,17 +140,28 @@ Sé amigable, profesional y conciso. Responde en español.
 
 ${context ? `CONTEXTO ADICIONAL:\n${context}` : ''}`;
 
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userQuestion },
-        ],
-        temperature: 0.7,
-        max_tokens: 300,
-      });
+      // Try to enqueue the request and wait for the worker to process it for a short time
+      try {
+        const { addAIJob, aiQueueEvents } = await import('../queues/AIQueue');
+        const { aiJobsAdded, aiJobsCompleted, aiJobsFailed } = await import('../metrics');
 
-      return completion.choices[0]?.message?.content || 'No pude procesar tu pregunta.';
+        const job = await addAIJob({ type: 'answerQuestion', payload: { userQuestion, storeId, context } }, { attempts: 2 });
+        try {
+          aiJobsAdded.inc();
+        } catch (e) {}
+
+        // Wait for job completion with a timeout
+        const res = await job.waitUntilFinished(aiQueueEvents, 10000);
+        try { aiJobsCompleted.inc(); } catch (e) {}
+
+        return res?.response || res;
+      } catch (queueErr) {
+        // If queueing fails or times out, fallback to direct call
+        console.warn('Queueing AI request failed, falling back to direct call:', (queueErr as any)?.message || String(queueErr));
+      }
+
+      const response = await this.processPrompt({ system: systemPrompt, user: userQuestion }, { max_tokens: 300 });
+      return response || 'No pude procesar tu pregunta.';
     } catch (error) {
       console.error('Error en AIService.answerQuestion:', error);
       return 'Disculpa, tuve un problema. ¿Podrías intentar de nuevo?';

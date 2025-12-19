@@ -8,13 +8,7 @@ import { OrderItem } from '../models/OrderItem';
 import { sequelize } from '../config/sequelize';
 import AIService from './AIService';
 import SessionManager from './SessionManager';
-import * as client from 'prom-client';
-
-// Metrics
-const cartAddsCounter = new client.Counter({ name: 'telegram_cart_add_total', help: 'Total cart additions' });
-const ordersCounter = new client.Counter({ name: 'telegram_orders_total', help: 'Total orders created' });
-const botErrorsCounter = new client.Counter({ name: 'telegram_bot_errors_total', help: 'Total bot errors' });
-const activeSessionsGauge = new client.Gauge({ name: 'telegram_active_sessions', help: 'Active sessions in Redis' });
+import { cartAddsCounter, ordersCounter, botErrorsCounter, activeSessionsGauge } from '../metrics';
 
 interface BotSession {
   storeId: number;
@@ -117,24 +111,9 @@ class TelegramBotService {
       await bot.stop();
       this.bots.delete(storeId);
 
-      // Limpiar sesiones de este bot (Redis-backed)
-      const sessionsToDelete: number[] = [];
-      // NOTE: key scan; for large deployments use a Redis set to index sessions per store
-      const keys = await (await import('../config/redis')).redis.keys('session:user:*');
-      for (const k of keys) {
-        const raw = await (await import('../config/redis')).redis.get(k);
-        if (!raw) continue;
-        try {
-          const s = JSON.parse(raw);
-          if (s.storeId === storeId) {
-            const uid = parseInt(k.split(':').pop() || '0', 10);
-            sessionsToDelete.push(uid);
-          }
-        } catch (err) {
-          // ignore parse errors
-        }
-      }
-      for (const userId of sessionsToDelete) {
+      // Limpiar sesiones de este bot (using per-store Redis set)
+      const userIds = await this.sessionManager.getSessionUserIdsForStore(storeId);
+      for (const userId of userIds) {
         await this.sessionManager.deleteSession(userId);
       }
 
@@ -177,19 +156,13 @@ class TelegramBotService {
   async getBotStatus(): Promise<Array<{ storeId: number; isRunning: boolean; sessionCount: number }>> {
     const status: Array<{ storeId: number; isRunning: boolean; sessionCount: number }> = [];
 
-    // Count sessions per running bot (NOTE: for large scale implement an index per store)
-    const redisClient = (await import('../config/redis')).redis;
-    const keys = await redisClient.keys('session:user:*');
-
+    // Count sessions per running bot using Redis index
     for (const [storeId] of this.bots) {
       let sessionCount = 0;
-      for (const k of keys) {
-        const raw = await redisClient.get(k);
-        if (!raw) continue;
-        try {
-          const s = JSON.parse(raw);
-          if (s.storeId === storeId) sessionCount++;
-        } catch (err) {}
+      try {
+        sessionCount = await this.sessionManager.countSessionsForStore(storeId);
+      } catch (err) {
+        sessionCount = 0;
       }
 
       status.push({
